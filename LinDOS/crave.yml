@@ -1,0 +1,5 @@
+name: LinDOS
+version: 2.0
+
+build:
+  script: .crave/build.sh
