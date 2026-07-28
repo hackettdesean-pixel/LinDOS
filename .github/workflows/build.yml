@@ -283,3 +283,4 @@ LinDOS Prime is an advanced bare-metal hardware optimizer daemon and lightweight
 make
 ./lindos_core &
 python3 gui/desktop.py
+
