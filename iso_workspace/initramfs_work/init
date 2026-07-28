@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Install standard Linux commands via BusyBox
+/bin/busybox --install -s /bin
+
+# Mount essential virtual filesystems
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs none /dev
+
+echo "========================================="
+echo " Booting LinDOS 1.3 (x86_64 Core)        "
+echo "========================================="
+
+# In the future, this is where your script will mount the 
+# SquashFS live image and switch_root into it.
+# For now, drop to a shell to verify a successful boot.
+
+exec /bin/sh
