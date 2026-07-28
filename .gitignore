@@ -1,1 +1,6 @@
-lindos-gaming.iso
+lindos_core
+*.o
+*.so
+__pycache__/
+*.pyc
+*.log
