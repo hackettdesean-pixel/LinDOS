@@ -11,29 +11,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
-
+        
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libncurses-dev bison flex
 
-      - name: Get BusyBox source
+      - name: Configure BusyBox
         run: |
-          # Skip this clone command if your BusyBox source code is already inside your repository
-          git clone https://git.busybox.net/busybox
-          cd busybox
-
-      - name: Configure BusyBox (Default Config)
-        run: |
-          # Change directory into where your busybox folder is located
-          cd busybox  # Change this if your folder name/path is different
-          make defconfig
+          cd path/to/busybox/source  # Make sure this is your actual BusyBox folder
+          make defconfig             # Use defconfig instead of olddefconfig
 
       - name: Compile BusyBox
         run: |
-          cd busybox  # Keep matching the directory path
+          cd path/to/busybox/source
           make -j$(nproc)
 
 
