@@ -1,0 +1,45 @@
+name: Build LinDOS ISO & Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            squashfs-tools \
+            xorriso \
+            mtools \
+            grub-pc-bin \
+            grub-efi-amd64-bin \
+            coreutils
+
+      - name: Set Execution Permissions
+        run: chmod +x build_iso.sh
+
+      - name: Run ISO Build Script
+        run: ./build_iso.sh
+
+      - name: Verify ISO Creation
+        run: ls -lh LinDOS-1.3-Gaming-x86_64.iso
+
+      - name: Upload Release and Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.3
+          name: LinDOS 1.3
+          body: "new distro relese"
+          files: LinDOS-1.3-Gaming-x86_64.iso
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
