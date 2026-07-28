@@ -4,3 +4,9 @@ lindos_core
 __pycache__/
 *.pyc
 *.log
+release/
+.git-credentials
+.config/
+.bash_history
+.config/
+.git-credentials

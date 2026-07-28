@@ -1,22 +1,78 @@
-# LinDOS: The Ultra-Lean Gaming Live OS
+# LinDOS Prime
 
-> **⚠️ DISCLAIMER & WARRANTY NOTICE**
-> *LinDOS is provided as an experimental, open-source project "AS IS", without warranty of any kind, express or implied. By downloading, flashing, or running this software on any physical or virtual hardware, you assume 100% responsibility for any data loss, system instability, hardware wear, or unexpected behavior. The creators and contributors of LinDOS shall not be held accountable or liable for any damages resulting from its use.*
+LinDOS Prime is an advanced bare-metal hardware optimizer daemon and lightweight hybrid desktop environment.
 
----
+## Quick Start
+```bash
+make
+./lindos_core &
+python3 gui/desktop.py
+#!/bin/bash
+set -e
 
-## 🚀 Overview
-LinDOS is a featherweight, high-performance, live-bootable operating system engineered from scratch for one sole purpose: **squeezing every drop of performance out of modest hardware (including 4GB RAM machines) to run AAA games at playable 30+ FPS.**
+echo "=========================================="
+echo " [LinDOS Prime] Interactive Nano Workspace Setup"
+echo "=========================================="
 
-### 🔥 Key Features
-* **Sub-400MB Idle Footprint:** Strips away background telemetry, heavy window managers, and OS bloat to dedicate nearly 100% of RAM to your games.
-* **ZRAM LZ4 Memory Compression:** Dynamically compresses active RAM on the fly, effectively turning a 4GB RAM budget into a massive high-speed memory pool.
-* **Live Hardware & Driver Selector:** Automatically configures Mesa, legacy integrated graphics, or proprietary drivers on the fly during boot.
-* **Native .exe Game Hub:** Features an interactive dark-mode terminal UI and low-overhead compatibility routing for running Windows binaries.
+# 1. Install nano and essential utilities
+apt-get update && apt-get install -y nano build-essential g++ make python3 python3-tk git
 
----
+# 2. Create Directory Structure
+mkdir -p src gui scripts .github/workflows
 
-## 📥 Installation & Beta Testing
-1. Download the latest `lindos-gaming.iso` from the **Releases** tab.
-2. Flash the ISO to a USB drive using **Ventoy** or **Rufus** (DD mode).
-3. Plug into your target PC/laptop, boot from USB, and launch the Game Hub!
+# 3. Write C++ Hardware Optimizer Engine
+cat << 'EOF' > src/lindos_core.cpp
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cstdlib>
+#include <unistd.h>
+
+class LinDOSCore {
+private:
+    bool writeSysFile(const std::string& path, const std::string& value) {
+        std::ofstream file(path);
+        if (!file.is_open()) return false;
+        file << value;
+        return file.good();
+    }
+
+    bool runCmd(const std::string& cmd) {
+        int res = std::system(cmd.c_str());
+        return (res == 0);
+    }
+
+public:
+    void initializeOptimizations() {
+        std::cout << "[LinDOS Core] Initializing low-level system optimizations...\n";
+
+        if (runCmd("modprobe zram 2>/dev/null")) {
+            writeSysFile("/sys/block/zram0/comp_algorithm", "zstd");
+            writeSysFile("/sys/block/zram0/disksize", "1G");
+            runCmd("mkswap /dev/zram0 >/dev/null 2>&1");
+            runCmd("swapon -p 100 /dev/zram0 >/dev/null 2>&1");
+            std::cout << "[LinDOS Core] ZRAM initialized successfully.\n";
+        }
+
+        if (writeSysFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", "performance")) {
+            std::cout << "[LinDOS Core] CPU locked to High-Performance mode.\n";
+        } else {
+            std::cout << "[LinDOS Core] Hardware sysfs locked by host environment (Normal for containers).\n";
+        }
+    }
+
+    void monitorAndBoost() {
+        std::cout << "[LinDOS Core] Background optimization loop active...\n";
+        while (true) {
+            writeSysFile("/proc/sys/vm/drop_caches", "3");
+            sleep(10);
+        }
+    }
+};
+
+int main() {
+    LinDOSCore core;
+    core.initializeOptimizations();
+    core.monitorAndBoost();
+    return 0;
+}

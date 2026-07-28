@@ -27,18 +27,18 @@ public:
             writeSysFile("/sys/block/zram0/disksize", "1G");
             runCmd("mkswap /dev/zram0 >/dev/null 2>&1");
             runCmd("swapon -p 100 /dev/zram0 >/dev/null 2>&1");
-            std::cout << "[LinDOS Core] ZRAM initialized.\n";
+            std::cout << "[LinDOS Core] ZRAM initialized successfully.\n";
         }
 
         if (writeSysFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", "performance")) {
             std::cout << "[LinDOS Core] CPU locked to High-Performance mode.\n";
         } else {
-            std::cout << "[LinDOS Core] Hardware sysfs locked by host environment (Virtual Root Active).\n";
+            std::cout << "[LinDOS Core] Hardware sysfs locked by host environment (Normal for containers).\n";
         }
     }
 
     void monitorAndBoost() {
-        std::cout << "[LinDOS Core] Background optimization loop running...\n";
+        std::cout << "[LinDOS Core] Background optimization loop active...\n";
         while (true) {
             writeSysFile("/proc/sys/vm/drop_caches", "3");
             sleep(10);
