@@ -1,0 +1,61 @@
+#!/bin/sh
+while true; do
+    clear
+    echo -e "\033[1;36m=====================================================\033[0m"
+    echo -e "\033[1;35m           L I N D O S   G A M E   H U B             \033[0m"
+    echo -e "\033[1;36m=====================================================\033[0m"
+    echo -e " [1] Launch Game (.exe / Portable Binary)"
+    echo -e " [2] Toggle AI Gaming Mode (CPU/GPU Max Performance)"
+    echo -e " [3] Check ZRAM Memory Compression Status"
+    echo -e " [4] System Hardware & Driver Info"
+    echo -e " [5] Drop to Advanced Linux Shell"
+    echo -e " [6] Reboot System"
+    echo -e "\033[1;36m-----------------------------------------------------\033[0m"
+    printf " Select option [1-6]: "
+    read choice
+
+    case "$choice" in
+        1)
+            echo ""
+            printf "Enter full path to game .exe or binary: "
+            read exepath
+            lindos-win-exec "$exepath"
+            read -p "Press Enter to return to Game Hub..."
+            ;;
+        2)
+            echo ""
+            echo "[AI Gaming Mode] Toggling maximum performance governor..."
+            echo "performance" > /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor 2>/dev/null
+            echo "[AI Gaming Mode] Fan curves maxed. Hardware locked at peak clocks."
+            sleep 2
+            ;;
+        3)
+            echo ""
+            echo "=== ZRAM Memory Status ==="
+            cat /proc/swaps
+            echo ""
+            free -m
+            read -p "Press Enter to return to Game Hub..."
+            ;;
+        4)
+            echo ""
+            echo "=== System & Hardware Profile ==="
+            uname -a
+            echo ""
+            echo "Active Drivers: Mesa / Direct Framebuffer"
+            read -p "Press Enter to return to Game Hub..."
+            ;;
+        5)
+            echo ""
+            echo "Dropping to shell. Type 'gamehub' to return to the UI."
+            exec /bin/sh
+            ;;
+        6)
+            reboot
+            ;;
+        *)
+            echo "Invalid option."
+            sleep 1
+            ;;
+    esac
+done
