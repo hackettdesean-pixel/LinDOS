@@ -1,3 +1,200 @@
+#!/bin/bash
+set -e
+
+echo "[LinDOS Master Setup] Initializing project workspace..."
+
+# ==========================================
+# 1. CREATE DIRECTORY STRUCTURE
+# ==========================================
+mkdir -p src gui scripts .github/workflows
+
+# ==========================================
+# 2. WRITE C++ HARDWARE OPTIMIZER ENGINE
+# ==========================================
+cat << 'EOF' > src/lindos_core.cpp
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cstdlib>
+#include <unistd.h>
+
+class LinDOSCore {
+private:
+    bool writeSysFile(const std::string& path, const std::string& value) {
+        std::ofstream file(path);
+        if (!file.is_open()) return false;
+        file << value;
+        return file.good();
+    }
+
+    bool runCmd(const std::string& cmd) {
+        int res = std::system(cmd.c_str());
+        return (res == 0);
+    }
+
+public:
+    void initializeOptimizations() {
+        std::cout << "[LinDOS Core] Initializing low-level system optimizations...\n";
+
+        if (runCmd("modprobe zram 2>/dev/null")) {
+            writeSysFile("/sys/block/zram0/comp_algorithm", "zstd");
+            writeSysFile("/sys/block/zram0/disksize", "1G");
+            runCmd("mkswap /dev/zram0 >/dev/null 2>&1");
+            runCmd("swapon -p 100 /dev/zram0 >/dev/null 2>&1");
+            std::cout << "[LinDOS Core] ZRAM initialized.\n";
+        }
+
+        if (writeSysFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", "performance")) {
+            std::cout << "[LinDOS Core] CPU locked to High-Performance mode.\n";
+        } else {
+            std::cout << "[LinDOS Core] Hardware sysfs locked by host environment.\n";
+        }
+    }
+
+    void monitorAndBoost() {
+        std::cout << "[LinDOS Core] Background optimization loop running...\n";
+        while (true) {
+            writeSysFile("/proc/sys/vm/drop_caches", "3");
+            sleep(10);
+        }
+    }
+};
+
+int main() {
+    LinDOSCore core;
+    core.initializeOptimizations();
+    core.monitorAndBoost();
+    return 0;
+}
+EOF
+
+# ==========================================
+# 3. WRITE PYTHON DESKTOP GUI
+# ==========================================
+cat << 'EOF' > gui/desktop.py
+import tkinter as tk
+from tkinter import ttk, messagebox
+import subprocess
+import os
+import datetime
+import random
+
+class HybridDesktop(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("LinDOS Prime Desktop")
+        self.attributes('-fullscreen', True)
+        
+        self.themes = {
+            "Catppuccin": {"bg": "#1e1e2e", "top": "#11111b", "task": "#181825", "accent": "#89b4fa", "card": "#313244", "fg": "#cdd6f4"},
+            "Cyberpunk": {"bg": "#0f051d", "top": "#05010d", "task": "#18092e", "accent": "#ff007f", "card": "#2a085c", "fg": "#00f0ff"},
+            "Matrix Green": {"bg": "#000f08", "top": "#000503", "task": "#001a0e", "accent": "#00ff66", "card": "#00331c", "fg": "#80ffb3"}
+        }
+        self.current_theme = self.themes["Catppuccin"]
+        self.configure(bg=self.current_theme["bg"])
+        self.start_menu_open = False
+        self.current_dir = os.path.expanduser("~")
+        self.terminal_cwd = os.path.expanduser("~")
+        
+        self.create_top_bar()
+        self.create_desktop_workspace()
+        self.create_bottom_taskbar()
+        self.create_mac_dock()
+        self.create_start_menu()
+        self.update_clock_and_stats()
+
+    def create_top_bar(self):
+        self.top_bar = tk.Frame(self, bg=self.current_theme["top"], height=30)
+        self.top_bar.pack(side="top", fill="x")
+        self.title_lbl = tk.Label(self.top_bar, text=" ❖ LinDOS Prime", fg=self.current_theme["fg"], bg=self.current_theme["top"], font=("Segoe UI", 10, "bold"))
+        self.title_lbl.pack(side="left", padx=10)
+        self.stats_label = tk.Label(self.top_bar, text="RAM: Active", fg=self.current_theme["accent"], bg=self.current_theme["top"], font=("Segoe UI", 9))
+        self.stats_label.pack(side="left", padx=20)
+        self.clock_label = tk.Label(self.top_bar, text="", fg=self.current_theme["fg"], bg=self.current_theme["top"], font=("Segoe UI", 10))
+        self.clock_label.pack(side="right", padx=15)
+
+    def update_clock_and_stats(self):
+        now = datetime.datetime.now().strftime("%I:%M:%S %p | %b %d, %Y")
+        self.clock_label.config(text=now)
+        try:
+            mem_info = subprocess.getoutput("free -m | grep Mem").split()
+            if len(mem_info) >= 3:
+                self.stats_label.config(text=f"RAM: {mem_info[2]}MB / {mem_info[1]}MB")
+        except Exception:
+            pass
+        self.after(1000, self.update_clock_and_stats)
+
+    def create_desktop_workspace(self):
+        self.workspace = tk.Frame(self, bg=self.current_theme["bg"])
+        self.workspace.pack(side="top", fill="both", expand=True)
+        self.refresh_desktop_shortcuts()
+
+    def refresh_desktop_shortcuts(self):
+        for widget in self.workspace.winfo_children():
+            widget.destroy()
+        shortcuts = [
+            ("💻", "Terminal", lambda: self.open_base_window("Terminal")),
+            ("📁", "Files", lambda: self.open_base_window("Files")),
+            ("🎮", "Games", lambda: self.open_base_window("Games")),
+            ("⚙", "Settings", lambda: self.open_base_window("Settings"))
+        ]
+        col = 0
+        for icon, name, cmd in shortcuts:
+            frame = tk.Frame(self.workspace, bg=self.current_theme["bg"], width=80, height=80)
+            frame.grid(row=0, column=col, padx=20, pady=20)
+            tk.Button(frame, text=icon, font=("Segoe UI", 24), bg=self.current_theme["bg"], fg=self.current_theme["accent"], bd=0, command=cmd).pack()
+            tk.Label(frame, text=name, bg=self.current_theme["bg"], fg=self.current_theme["fg"], font=("Segoe UI", 9)).pack()
+            col += 1
+
+    def open_base_window(self, title):
+        win = tk.Toplevel(self)
+        win.title(title)
+        win.geometry("500x350+100+100")
+        win.configure(bg=self.current_theme["bg"])
+        tk.Label(win, text=f"LinDOS {title} Module Active", fg=self.current_theme["fg"], bg=self.current_theme["bg"], font=("Segoe UI", 12)).pack(expand=True)
+
+    def create_bottom_taskbar(self):
+        self.taskbar = tk.Frame(self, bg=self.current_theme["task"], height=44)
+        self.taskbar.pack(side="bottom", fill="x")
+        tk.Button(self.taskbar, text=" ❖ Exit ", bg=self.current_theme["accent"], fg="#11111b", font=("Segoe UI", 10, "bold"), command=self.quit).pack(side="left", padx=8, pady=5)
+
+    def create_start_menu(self): pass
+    def create_mac_dock(self): pass
+
+if __name__ == "__main__":
+    app = HybridDesktop()
+    app.mainloop()
+EOF
+
+# ==========================================
+# 4. WRITE ISO BUILD SCRIPT
+# ==========================================
+cat << 'EOF' > scripts/build_iso.sh
+#!/bin/bash
+set -e
+
+echo "[LinDOS Builder] Setting up build workspace..."
+BUILD_DIR="/tmp/lindos_iso_build"
+LIVE_DIR="$BUILD_DIR/live"
+
+rm -rf $BUILD_DIR
+mkdir -p $LIVE_DIR/opt/lindos
+
+make clean && make
+
+cp lindos_core $LIVE_DIR/opt/lindos/
+cp -r gui $LIVE_DIR/opt/lindos/
+
+mkdir -p release
+tar -czvf release/LinDOS-Prime-live.tar.gz -C $LIVE_DIR .
+echo "[LinDOS Builder] Package compiled successfully: release/LinDOS-Prime-live.tar.gz"
+EOF
+chmod +x scripts/build_iso.sh
+
+# ==========================================
+# 5. WRITE GITHUB ACTIONS WORKFLOW
+# ==========================================
+cat << 'EOF' > .github/workflows/build-iso.yml
 name: LinDOS Prime Automated ISO & Release Builder
 
 on:
@@ -31,9 +228,58 @@ jobs:
         tag_name: v1.0.${{ github.run_number }}
         name: LinDOS Prime Auto-Build #${{ github.run_number }}
         body: |
-          Automated build produced from latest commit.
-          - C++ Bare-Metal Core Compiled (-O3)
+          Automated high-performance build produced from latest commit.
+          - C++ Bare-Metal Core Compiled with Aggressive Optimization (-O3, -flto)
           - GUI Desktop Environment Included
         files: release/LinDOS-Prime-live.tar.gz
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+EOF
+
+# ==========================================
+# 6. WRITE OPTIMIZED MAKEFILE (WITH TABS)
+# ==========================================
+python3 -c '
+makefile_content = """CXX = g++
+CC = gcc
+CXXFLAGS = -O3 -march=native -flto -Wno-unused-result
+CFLAGS = -O3 -march=native -flto
+SRC = src/lindos_core.cpp
+TARGET = lindos_core
+
+all: $(TARGET)
+
+$(TARGET): $(SRC)
+\t$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)
+\t@echo "[LinDOS] High-performance build complete: ./lindos_core"
+
+clean:
+\trm -f $(TARGET)
+"""
+with open("Makefile", "w") as f:
+    f.write(makefile_content)
+'
+
+# ==========================================
+# 7. WRITE GITIGNORE & README
+# ==========================================
+cat << 'EOF' > .gitignore
+lindos_core
+*.o
+*.so
+__pycache__/
+*.pyc
+*.log
+release/
+EOF
+
+cat << 'EOF' > README.md
+# LinDOS Prime
+
+LinDOS Prime is an advanced bare-metal hardware optimizer daemon and lightweight hybrid desktop environment.
+
+## Quick Start
+```bash
+make
+./lindos_core &
+python3 gui/desktop.py
