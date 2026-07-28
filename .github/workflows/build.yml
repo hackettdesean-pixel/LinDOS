@@ -23,6 +23,10 @@ jobs:
       run: |
         cd tools/busybox-1.36.1
         make defconfig
+        
+        # Disable the 'tc' applet to fix the struct tc_cbq_wrropt compilation error
+        sed -i 's/^CONFIG_TC=y/# CONFIG_TC is not set/' .config
+        
         make -j$(nproc)
 
     - name: Upload Compiled Binary Artifact
