@@ -1,18 +1,27 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
-echo "[LinDOS Builder] Setting up build workspace..."
-BUILD_DIR="/tmp/lindos_iso_build"
-LIVE_DIR="$BUILD_DIR/live"
+echo "Preparing ISO directory structure..."
+mkdir -p iso_root/boot/grub
+mkdir -p iso_root/source
 
-rm -rf $BUILD_DIR
-mkdir -p $LIVE_DIR/opt/lindos
+cp -r * iso_root/source/ 2>/dev/null || true
 
-make clean && make
+cat << 'CFG' > iso_root/boot/grub/grub.cfg
+set timeout=3
+set default=0
 
-cp lindos_core $LIVE_DIR/opt/lindos/
-cp -r gui $LIVE_DIR/opt/lindos/
+menuentry "LinDOS Live Environment" {
+    echo "Starting LinDOS..."
+}
 
-mkdir -p release
-tar -czvf release/LinDOS-Prime-live.tar.gz -C $LIVE_DIR .
-echo "[LinDOS Builder] Package compiled successfully: release/LinDOS-Prime-live.tar.gz"
+menuentry "Reboot" {
+    reboot
+}
+CFG
+
+echo "Generating bootable LinDOS.iso..."
+grub-mkrescue -o LinDOS.iso iso_root/
+
+echo "Build complete! ISO size:"
+ls -lh LinDOS.iso

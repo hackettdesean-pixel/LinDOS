@@ -1,0 +1,32 @@
+name: Build LinDOS ISO
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools
+
+      - name: Make Build Script Executable
+        run: chmod +x scripts/build_iso.sh
+
+      - name: Run ISO Builder
+        run: ./scripts/build_iso.sh
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: LinDOS.iso
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
