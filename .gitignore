@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 *.o
 *.obj
 *.dll
@@ -5,3 +6,12 @@
 *.exe
 build/
 bin/
+=======
+lindos_core
+*.o
+*.so
+__pycache__/
+*.pyc
+*.log
+release/
+>>>>>>> bf49202d7af9878a94f38dc06bd92ed943828b01

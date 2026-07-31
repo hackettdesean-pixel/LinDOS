@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+import sys
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, 
+    QTabWidget, QGroupBox, QCheckBox, QGridLayout
+)
+
+class GarudaGamerUI(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Garuda Gamer")
+        self.resize(850, 600)
+        
+        # Dark mode styling matching Garuda Gamer's exact theme
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #1a1b1e;
+            }
+            QTabWidget::pane {
+                border: 1px solid #2d3139;
+                background: #1a1b1e;
+            }
+            QTabBar::tab {
+                background: #141517;
+                color: #909399;
+                padding: 8px 20px;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                font-weight: bold;
+            }
+            QTabBar::tab:selected {
+                background: #1a1b1e;
+                color: #ffffff;
+                border-bottom: 2px solid #3daee9;
+            }
+            QGroupBox {
+                border: 1px solid #2d3139;
+                border-radius: 6px;
+                margin-top: 12px;
+                font-weight: bold;
+                color: #e0e0e0;
+                padding-top: 16px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 4px;
+            }
+            QCheckBox {
+                color: #d0d0d0;
+                spacing: 8px;
+                font-size: 11px;
+            }
+            QCheckBox::indicator {
+                width: 15px;
+                height: 15px;
+                border: 1px solid #4f5b66;
+                border-radius: 3px;
+                background: #21252b;
+            }
+            QCheckBox::indicator:checked {
+                background: #3daee9;
+                border-color: #3daee9;
+            }
+        """)
+
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+
+        # Tab Widget (Gamer / Emulators)
+        tabs = QTabWidget()
+        main_layout.addWidget(tabs)
+
+        gamer_tab = QWidget()
+        tabs.addTab(gamer_tab, "Gamer")
+        tab_layout = QVBoxLayout(gamer_tab)
+
+        # Launchers Section
+        launchers_group = QGroupBox("Launchers")
+        launchers_layout = QGridLayout()
+        launchers = [
+            ("Steam (Runtime)", 0, 0), ("Steam (Native)", 0, 1), ("Minigalaxy", 0, 2), ("Itch", 0, 3),
+            ("Gamer World", 1, 0), ("Legendary", 1, 1), ("GameHub", 1, 2), ("Lutris", 1, 3),
+            ("EmulationStation", 2, 0), ("Pegasus-frontend", 2, 1), ("IA Launcher", 2, 2), ("PlayIt", 2, 3),
+            ("PlayOnLinux", 3, 0), ("Athenaeum", 3, 1)
+        ]
+        for text, r, c in launchers:
+            launchers_layout.addWidget(QCheckBox(text), r, c)
+        launchers_group.setLayout(launchers_layout)
+        tab_layout.addWidget(launchers_group)
+
+        # WINE Section
+        wine_group = QGroupBox("WINE")
+        wine_layout = QGridLayout()
+        wines = [
+            ("WINE", 0, 0), ("Winetricks", 0, 1), ("Q4WINE", 0, 2), ("DXVK", 0, 3),
+            ("proton-ge-custom", 1, 0), ("Proton-TKG", 1, 1), ("Prototricks", 1, 2), ("Boxtron", 1, 3)
+        ]
+        for text, r, c in wines:
+            wine_layout.addWidget(QCheckBox(text), r, c)
+        wine_group.setLayout(wine_layout)
+        tab_layout.addWidget(wine_group)
+
+        # Tools Section
+        tools_group = QGroupBox("Tools")
+        tools_layout = QGridLayout()
+        tools = [
+            ("antimicroX", 0, 0), ("sc-controller", 0, 1), ("Oversteer", 0, 2), ("piper", 0, 3)
+        ]
+        for text, r, c in tools:
+            tools_layout.addWidget(QCheckBox(text), r, c)
+        tools_group.setLayout(tools_layout)
+        tab_layout.addWidget(tools_group)
+
+        # Emulators Tab Placeholder
+        emulators_tab = QWidget()
+        tabs.addTab(emulators_tab, "Emulators")
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = GarudaGamerUI()
+    window.show()
+    sys.exit(app.exec_())
+

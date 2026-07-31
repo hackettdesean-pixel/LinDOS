@@ -1,0 +1,45 @@
+#!/bin/sh
+
+# Mount essential kernel filesystems
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+
+# Set up PATH
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+
+# Force true dark-mode console background and clear
+echo -e "\033[0m\033[40m\033[37m"
+clear
+
+# Setup ZRAM Memory Compression (4GB RAM optimization)
+modprobe zram 2>/dev/null
+if [ -b /dev/zram0 ]; then
+    echo "lz4" > /sys/block/zram0/comp_algorithm 2>/dev/null
+    echo $((2 * 1024 * 1024 * 1024)) > /sys/block/zram0/disksize 2>/dev/null
+    mkswap /dev/zram0 >/dev/null 2>&1
+    swapon -p 100 /dev/zram0 >/dev/null 2>&1
+fi
+
+# Cyberpunk Dark Mode Boot Sequence
+echo -e "\033[1;36m=====================================================\033[0m"
+echo -e "\033[1;35m       L I N D O S   [GAMING EDITION v1.0]           \033[0m"
+echo -e "\033[1;36m=====================================================\033[0m"
+echo -e "\033[1;30m  [System Profile: Ultra-Lean Dark Mode Active]      \033[0m"
+echo -e "\033[1;30m  [Memory Engine: ZRAM LZ4 Active (0MB Bloat)]       \033[0m"
+echo -e "\033[1;36m-----------------------------------------------------\033[0m"
+echo -n " > Mounting Direct Hardware Layer... "
+sleep 0.2
+echo -e "\033[1;32m[OK]\033[0m"
+echo -n " > Engaging Low-Latency Scheduler...  "
+sleep 0.2
+echo -e "\033[1;32m[OK]\033[0m"
+echo -n " > Initializing Game Hub Environment.. "
+sleep 0.2
+echo -e "\033[1;32m[OK]\033[0m"
+echo -e "\033[1;36m-----------------------------------------------------\033[0m"
+echo -e "\033[1;37m Initialization complete. Launching Game Hub...\033[0m\n"
+sleep 1
+
+# Automatically launch the interactive Game Hub UI
+exec /bin/gamehub

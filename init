@@ -1,0 +1,4 @@
+echo "Starting LinDOS Graphical Environment..."
+export DISPLAY=:0
+startx &
+
