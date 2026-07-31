@@ -15,7 +15,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libncurses-dev bison flex xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools
+          sudo apt-get install -y build-essential libncurses-dev bison flex xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools syslinux-utils
 
       - name: Fix Permissions
         run: |
@@ -34,18 +34,28 @@ jobs:
         run: |
           mkdir -p iso_root/boot/grub
           mkdir -p iso_root/bin
+          mkdir -p iso_root/EFI/BOOT
 
-          # Install compiled BusyBox binary into rootfs
+          # Copy BusyBox
           cp tools/busybox-1.36.1/busybox iso_root/bin/
           chmod +x iso_root/bin/busybox
+          
+          # Create system init link pointing to BusyBox
+          ln -s /bin/busybox iso_root/init
 
-          # Create GRUB boot configuration
+          # Create robust GRUB boot configuration for UEFI
           cat << 'CFG' > iso_root/boot/grub/grub.cfg
-          set timeout=5
+          insmod all_video
+          insmod efi_gop
+          insmod efi_uga
+          set gfxpayload=keep
+          set timeout=10
           set default=0
 
-          menuentry "LinDOS x86_64 Live System" {
-              echo "Loading LinDOS OS core..."
+          menuentry "LinDOS x86_64 (UEFI Hybrid Mode)" {
+              echo "GRUB loaded successfully!"
+              echo "Booting LinDOS structure..."
+              sleep 3
           }
 
           menuentry "Reboot" {
@@ -53,11 +63,11 @@ jobs:
           }
           CFG
 
-      - name: Generate Bootable ISO
+      - name: Generate Hybrid Bootable ISO
         run: |
-          grub-mkrescue -o LinDOS-x86_64.iso iso_root/
+          grub-mkrescue /usr/lib/grub/i386-pc /usr/lib/grub/x86_64-efi -o LinDOS-x86_64.iso iso_root/ -- -volid "LINDOS"
 
-      - name: Upload ISO as Workflow Artifact
+      - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4
         with:
           name: LinDOS-x86_64-ISO
