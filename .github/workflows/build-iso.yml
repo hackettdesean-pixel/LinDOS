@@ -1,0 +1,45 @@
+name: Build and Release LinDOS ISO
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm archiso base-devel rsync
+
+      - name: Build ISO
+        run: |
+          chmod +x ./scripts/build_iso.sh
+          ./scripts/build_iso.sh
+
+      - name: Locate Generated ISO
+        id: find_iso
+        run: |
+          ISO_PATH=$(find out -name "*.iso" | head -n 1)
+          echo "iso_path=$ISO_PATH" >> $GITHUB_OUTPUT
+          echo "iso_name=$(basename $ISO_PATH)" >> $GITHUB_OUTPUT
+
+      - name: Publish Release and Upload ISO
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.find_iso.outputs.iso_path }}
+          name: "LinDOS Release ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
