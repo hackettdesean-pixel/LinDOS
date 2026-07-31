@@ -1,12 +1,12 @@
-name: Build LinDOS ISO
+name: Build LinDOS x86_64 ISO
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-iso:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -15,18 +15,50 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools
+          sudo apt-get install -y build-essential libncurses-dev bison flex xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools
 
-      - name: Make Build Script Executable
-        run: chmod +x scripts/build_iso.sh
+      - name: Fix Permissions
+        run: |
+          chmod -R +x tools/
+          chmod -R +x scripts/ 2>/dev/null || true
 
-      - name: Run ISO Builder
-        run: ./scripts/build_iso.sh
+      - name: Compile BusyBox Core
+        run: |
+          cd tools/busybox-1.36.1
+          if [ ! -f .config ]; then make defconfig; fi
+          sed -i 's/CONFIG_TC=y/# CONFIG_TC is not set/' .config
+          sed -i 's/CONFIG_FEATURE_TC_INGRESS=y/# CONFIG_FEATURE_TC_INGRESS is not set/' .config
+          make -j$(nproc)
 
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
+      - name: Assemble Filesystem & Bootloader
+        run: |
+          mkdir -p iso_root/boot/grub
+          mkdir -p iso_root/bin
+
+          # Install compiled BusyBox binary into rootfs
+          cp tools/busybox-1.36.1/busybox iso_root/bin/
+          chmod +x iso_root/bin/busybox
+
+          # Create GRUB boot configuration
+          cat << 'CFG' > iso_root/boot/grub/grub.cfg
+          set timeout=5
+          set default=0
+
+          menuentry "LinDOS x86_64 Live System" {
+              echo "Loading LinDOS OS core..."
+          }
+
+          menuentry "Reboot" {
+              reboot
+          }
+          CFG
+
+      - name: Generate Bootable ISO
+        run: |
+          grub-mkrescue -o LinDOS-x86_64.iso iso_root/
+
+      - name: Upload ISO as Workflow Artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: LinDOS.iso
-          fail_on_unmatched_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: LinDOS-x86_64-ISO
+          path: LinDOS-x86_64.iso
