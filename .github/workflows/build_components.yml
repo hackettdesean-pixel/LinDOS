@@ -1,0 +1,28 @@
+name: Build LinDOS x86_64 Components
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev bison flex
+
+      - name: Fix execution permissions for BusyBox scripts
+        run: |
+          chmod -R +x tools/busybox-1.36.1/scripts/
+          chmod -R +x tools/
+
+      - name: Build BusyBox
+        run: |
+          cd tools/busybox-1.36.1
+          make
