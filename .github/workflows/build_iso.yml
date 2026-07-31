@@ -15,25 +15,38 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libncurses-dev bison flex xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools cpio gzip
+          sudo apt-get install -y build-essential libncurses-dev bison flex xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools cpio gzip file
 
       - name: Fix Permissions
         run: |
           chmod -R +x tools/
           chmod -R +x scripts/ 2>/dev/null || true
 
-      - name: Compile BusyBox Core (Static)
+      - name: Compile BusyBox Core (Forced Static)
         run: |
           cd tools/busybox-1.36.1
-          if [ ! -f .config ]; then make defconfig; fi
-          sed -i 's/CONFIG_TC=y/# CONFIG_TC is not set/' .config
-          sed -i 's/CONFIG_FEATURE_TC_INGRESS=y/# CONFIG_FEATURE_TC_INGRESS is not set/' .config
-          sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
+
+          # Wipe ANY previous config/build state so nothing stale
+          # (old configs, old .o files, an old ARM binary) can survive
+          make mrproper 2>/dev/null || true
+
+          make defconfig
+
+          sed -i 's/^CONFIG_TC=y/# CONFIG_TC is not set/' .config
+          sed -i 's/^CONFIG_FEATURE_TC_INGRESS=y/# CONFIG_FEATURE_TC_INGRESS is not set/' .config
+
+          # Force static linking — delete any existing line first so
+          # this can't silently no-op if the exact text ever differs
+          sed -i '/CONFIG_STATIC/d' .config
+          echo "CONFIG_STATIC=y" >> .config
+          yes "" | make oldconfig
+
           make -j$(nproc)
-          echo "---- Link check ----"
+
+          echo "---- BusyBox link check ----"
           file busybox
-          if file busybox | grep -q "dynamically linked"; then
-            echo "ERROR: busybox is dynamically linked, initramfs will panic on boot"
+          if ! file busybox | grep -q "statically linked"; then
+            echo "FATAL: busybox is not statically linked. Aborting build."
             exit 1
           fi
 
@@ -65,9 +78,16 @@ exec /bin/sh
 INITSCRIPT
           chmod +x initramfs/init
 
+          echo "---- init sanity check ----"
+          ls -l initramfs/init
+          head -c 40 initramfs/init | cat -A | head -1
+
           cd initramfs
           find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../iso_root/boot/initrd.img
           cd ..
+
+          echo "---- initramfs archive contents ----"
+          gzip -dc iso_root/boot/initrd.img | cpio -tv
 
           KERNEL_PATH=$(ls -1 /boot/vmlinuz-* | head -n 1)
           sudo cp "$KERNEL_PATH" iso_root/boot/vmlinuz
@@ -85,7 +105,7 @@ INITSCRIPT
 
           menuentry "LinDOS x86_64 Live Shell" {
               echo "Loading LinDOS Linux Kernel..."
-              linux /boot/vmlinuz console=tty0 quiet
+              linux /boot/vmlinuz console=tty0 rdinit=/init
               echo "Loading LinDOS Initial RAM Disk..."
               initrd /boot/initrd.img
           }
