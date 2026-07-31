@@ -22,9 +22,13 @@ jobs:
         run: |
           pacman -Syu --noconfirm archiso base-devel rsync
 
-      - name: Build ISO
+      - name: Fix script permissions
         run: |
           chmod +x ./scripts/build_iso.sh
+          find tools -name "*.sh" -exec chmod +x {} +
+
+      - name: Build ISO
+        run: |
           ./scripts/build_iso.sh
 
       - name: Locate Generated ISO
