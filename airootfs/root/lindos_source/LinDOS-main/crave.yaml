@@ -1,0 +1,5 @@
+version: 1
+OS: ubuntu:22.04
+build:
+  - command: bash .crave/build.sh
+

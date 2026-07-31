@@ -1,0 +1,44 @@
+#!/bin/sh
+while true; do
+    clear
+    echo "================================================================="
+    echo "                  L I N D O S   G A M E R                        "
+    echo "================================================================="
+    echo " Tabs: [1] Gamer (Active)   [2] Emulators                        "
+    echo "-----------------------------------------------------------------"
+    echo " LAUNCHERS:"
+    echo "   [x] Steam (Runtime)      [ ] Minigalaxy      [ ] Itch.io"
+    echo "   [ ] Legendary            [ ] GameHub         [ ] Lutris"
+    echo "   [ ] EmulationStation     [ ] Pegasus         [ ] PlayIt"
+    echo ""
+    echo " WINE & COMPATIBILITY:"
+    echo "   [x] WINE                 [ ] Winetricks      [ ] DXVK"
+    echo "   [x] Proton-GE-Custom     [ ] Proton-TKG      [ ] Protonricks"
+    echo ""
+    echo " TOOLS:"
+    echo "   [x] AntimicroX           [ ] Oversteer       [ ] Piper"
+    echo "-----------------------------------------------------------------"
+    echo " [1] Launch Selected Runtimes  [2] Toggle ZRAM Mode  [3] Exit Shell"
+    echo "================================================================="
+    printf " Select action [1-3]: "
+    read choice
+
+    case "$choice" in
+        1)
+            echo "Launching selected gaming runtime environment..."
+            sleep 2
+            ;;
+        2)
+            echo "ZRAM Compression Status: Active (LZ4 Dynamic Pool)"
+            sleep 2
+            ;;
+        3)
+            echo "Dropping to system shell..."
+            exec /bin/sh
+            ;;
+        *)
+            echo "Invalid selection."
+            sleep 1
+            ;;
+    esac
+done

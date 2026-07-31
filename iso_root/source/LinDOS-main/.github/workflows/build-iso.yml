@@ -1,0 +1,39 @@
+name: LinDOS Prime Automated ISO & Release Builder
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout Code Repository
+      uses: actions/checkout@v4
+
+    - name: Install Build Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++ make xorriso squashfs-tools
+
+    - name: Compile C++ Engine & Package Release
+      run: |
+        bash scripts/build_iso.sh
+
+    - name: Create Automated GitHub Release
+      uses: softprops/action-gh-release@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        name: LinDOS Prime Auto-Build #${{ github.run_number }}
+        body: |
+          Automated high-performance build produced from latest commit.
+          - C++ Bare-Metal Core Compiled with Aggressive Optimization (-O3, -flto)
+          - GUI Desktop Environment Included
+        files: release/LinDOS-Prime-live.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
