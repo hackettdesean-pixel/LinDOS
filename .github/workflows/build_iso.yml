@@ -15,7 +15,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libncurses-dev bison flex xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools syslinux-utils
+          sudo apt-get install -y build-essential libncurses-dev bison flex xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools cpio gzip
 
       - name: Fix Permissions
         run: |
@@ -30,32 +30,58 @@ jobs:
           sed -i 's/CONFIG_FEATURE_TC_INGRESS=y/# CONFIG_FEATURE_TC_INGRESS is not set/' .config
           make -j$(nproc)
 
-      - name: Assemble Filesystem & Bootloader
+      - name: Build RAM Disk (Initramfs) & Fetch Kernel
         run: |
           mkdir -p iso_root/boot/grub
-          mkdir -p iso_root/bin
-          mkdir -p iso_root/EFI/BOOT
+          mkdir -p initramfs/{bin,sbin,etc,proc,sys,dev,usr/bin,usr/sbin}
 
-          # Copy BusyBox
-          cp tools/busybox-1.36.1/busybox iso_root/bin/
-          chmod +x iso_root/bin/busybox
-          
-          # Create system init link pointing to BusyBox
-          ln -s /bin/busybox iso_root/init
+          # Install BusyBox into the initramfs
+          cp tools/busybox-1.36.1/busybox initramfs/bin/busybox
+          chmod +x initramfs/bin/busybox
 
-          # Create robust GRUB boot configuration for UEFI
+          # Create basic symlinks for BusyBox
+          cd initramfs/bin
+          ./busybox --install -s .
+          cd ../..
+
+          # Create system init startup script
+          cat << 'INITSCRIPT' > initramfs/init
+#!/bin/sh
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t devtmpfs none /dev
+
+clear
+echo "================================================="
+echo "   Welcome to LinDOS x86_64 Live Shell!          "
+echo "================================================="
+echo ""
+exec /bin/sh
+INITSCRIPT
+          chmod +x initramfs/init
+
+          # Compress initramfs into initrd.img
+          (cd initramfs && find . | cpio -H newc -o | gzip -9) > iso_root/boot/initrd.img
+
+          # Copy Linux Kernel from runner
+          KERNEL_PATH=$(ls -1 /boot/vmlinuz-* | head -n 1)
+          cp "$KERNEL_PATH" iso_root/boot/vmlinuz
+
+      - name: Configure GRUB Bootloader
+        run: |
           cat << 'CFG' > iso_root/boot/grub/grub.cfg
           insmod all_video
           insmod efi_gop
           insmod efi_uga
           set gfxpayload=keep
-          set timeout=10
+          set timeout=5
           set default=0
 
-          menuentry "LinDOS x86_64 (UEFI Hybrid Mode)" {
-              echo "GRUB loaded successfully!"
-              echo "Booting LinDOS structure..."
-              sleep 3
+          menuentry "LinDOS x86_64 Live Shell" {
+              echo "Loading LinDOS Linux Kernel..."
+              linux /boot/vmlinuz console=tty0 quiet
+              echo "Loading LinDOS Initial RAM Disk..."
+              initrd /boot/initrd.img
           }
 
           menuentry "Reboot" {
