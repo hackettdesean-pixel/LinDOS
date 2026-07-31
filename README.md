@@ -20,3 +20,4 @@ LinDOS is a featherweight, high-performance, live-bootable operating system engi
 1. Download the latest `lindos-gaming.iso` from the **Releases** tab.
 2. Flash the ISO to a USB drive using **Ventoy** or **Rufus** (DD mode).
 3. Plug into your target PC/laptop, boot from USB, and launch the Game Hub!
+ALSO MAKE SURE YOU DOWNLOAD THE RAW ZIP FILE TO GET ISO AND OTHERFILES FOR IT TO WORK
