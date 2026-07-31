@@ -63,9 +63,10 @@ jobs:
           # Compress initramfs into initrd.img
           (cd initramfs && find . | cpio -H newc -o | gzip -9) > iso_root/boot/initrd.img
 
-          # Copy Linux Kernel from runner
+          # Copy Linux Kernel from runner (requires sudo)
           KERNEL_PATH=$(ls -1 /boot/vmlinuz-* | head -n 1)
-          cp "$KERNEL_PATH" iso_root/boot/vmlinuz
+          sudo cp "$KERNEL_PATH" iso_root/boot/vmlinuz
+          sudo chmod 644 iso_root/boot/vmlinuz
 
       - name: Configure GRUB Bootloader
         run: |
