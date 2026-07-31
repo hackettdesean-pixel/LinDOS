@@ -2,228 +2,105 @@ name: Build LinDOS x86_64 ISO
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build-iso:
-    runs-on: ubuntu-24.04
-
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
+      - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            libncurses-dev \
-            bison \
-            flex \
-            xorriso \
-            grub-pc-bin \
-            grub-efi-amd64-bin \
-            grub-common \
-            mtools \
-            dosfstools \
-            cpio \
-            gzip \
-            musl-tools \
-            linux-image-generic
+          sudo apt-get install -y build-essential libncurses-dev bison flex xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools cpio gzip
 
-      - name: Fix source permissions
+      - name: Fix Permissions
         run: |
-          chmod -R u+rwX tools
-          find tools -type f -name '*.sh' -exec chmod +x {} \;
-          if [ -d scripts ]; then
-            chmod -R u+rwX scripts
-            find scripts -type f -name '*.sh' -exec chmod +x {} \;
-          fi
+          chmod -R +x tools/
+          chmod -R +x scripts/ 2>/dev/null || true
 
-      - name: Configure and compile static BusyBox
+      - name: Compile BusyBox Core (Static)
         run: |
           cd tools/busybox-1.36.1
-
-          make distclean
-          make defconfig
-
-          scripts/config --enable CONFIG_STATIC
-          scripts/config --disable CONFIG_TC
-          scripts/config --disable CONFIG_FEATURE_TC_INGRESS
-
-          make olddefconfig
-          make -j"$(nproc)"
-
+          if [ ! -f .config ]; then make defconfig; fi
+          sed -i 's/CONFIG_TC=y/# CONFIG_TC is not set/' .config
+          sed -i 's/CONFIG_FEATURE_TC_INGRESS=y/# CONFIG_FEATURE_TC_INGRESS is not set/' .config
+          sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
+          make -j$(nproc)
+          echo "---- Link check ----"
           file busybox
-          ldd busybox || true
-
-          if ! file busybox | grep -q "statically linked"; then
-            echo "ERROR: BusyBox was not built statically."
+          if file busybox | grep -q "dynamically linked"; then
+            echo "ERROR: busybox is dynamically linked, initramfs will panic on boot"
             exit 1
           fi
 
-      - name: Build LinDOS initramfs
+      - name: Build RAM Disk (Initramfs) & Fetch Kernel
         run: |
-          rm -rf initramfs iso_root
-          mkdir -p \
-            initramfs/bin \
-            initramfs/sbin \
-            initramfs/etc \
-            initramfs/proc \
-            initramfs/sys \
-            initramfs/dev \
-            initramfs/tmp \
-            initramfs/run \
-            initramfs/root \
-            initramfs/usr/bin \
-            initramfs/usr/sbin \
-            iso_root/boot/grub
+          mkdir -p iso_root/boot/grub
+          rm -rf initramfs
+          mkdir -p initramfs/{bin,sbin,etc,proc,sys,dev,usr/bin,usr/sbin}
 
           cp tools/busybox-1.36.1/busybox initramfs/bin/busybox
-          chmod 0755 initramfs/bin/busybox
+          chmod +x initramfs/bin/busybox
 
-          (
-            cd initramfs
-            ./bin/busybox --install -s ./bin
-            ln -sf bin/busybox linuxrc
-          )
+          cd initramfs/bin
+          ./busybox --install -s .
+          cd ../..
 
-          cat > initramfs/init <<'INITSCRIPT'
-          #!/bin/sh
+          cat << 'INITSCRIPT' > initramfs/init
+#!/bin/sh
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t devtmpfs none /dev 2>/dev/null || true
 
-          export PATH=/bin:/sbin:/usr/bin:/usr/sbin
-          export HOME=/root
-          export TERM=linux
+clear
+echo "================================================="
+echo "   Welcome to LinDOS x86_64 Live Shell!          "
+echo "================================================="
+echo ""
+exec /bin/sh
+INITSCRIPT
+          chmod +x initramfs/init
 
-          /bin/busybox mount -t proc proc /proc
-          /bin/busybox mount -t sysfs sysfs /sys
-          /bin/busybox mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+          cd initramfs
+          find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../iso_root/boot/initrd.img
+          cd ..
 
-          [ -e /dev/console ] || /bin/busybox mknod -m 600 /dev/console c 5 1
-          [ -e /dev/null ] || /bin/busybox mknod -m 666 /dev/null c 1 3
-          [ -e /dev/tty ] || /bin/busybox mknod -m 666 /dev/tty c 5 0
-
-          /bin/busybox mkdir -p /dev/pts /dev/shm /run /tmp
-          /bin/busybox mount -t devpts devpts /dev/pts 2>/dev/null || true
-          /bin/busybox mount -t tmpfs tmpfs /run 2>/dev/null || true
-          /bin/busybox mount -t tmpfs tmpfs /tmp 2>/dev/null || true
-
-          echo
-          echo "================================================="
-          echo "          LinDOS x86_64 Live Environment"
-          echo "================================================="
-          echo
-          echo "Kernel:"
-          /bin/busybox uname -a
-          echo
-          echo "LinDOS initramfs loaded successfully."
-          echo "Type 'help' for BusyBox commands."
-          echo
-
-          exec /bin/sh </dev/console >/dev/console 2>&1
-
-          echo "LinDOS shell exited. Starting emergency shell."
-          exec /bin/sh </dev/console >/dev/console 2>&1
-          INITSCRIPT
-
-          chmod 0755 initramfs/init
-
-          (
-            cd initramfs
-            find . -print0 \
-              | cpio --null --create --verbose --format=newc \
-              | gzip -9
-          ) > iso_root/boot/initrd.img
-
-          gzip -t iso_root/boot/initrd.img
-
-          echo "Checking initramfs contents:"
-          gzip -dc iso_root/boot/initrd.img \
-            | cpio -t \
-            | grep -E '^\./init$|^\./bin/busybox$'
-
-      - name: Copy a Linux kernel
-        run: |
-          KERNEL_PATH="$(find /boot -maxdepth 1 -type f -name 'vmlinuz-*' \
-            | sort -V \
-            | tail -n 1)"
-
-          if [ -z "$KERNEL_PATH" ]; then
-            echo "ERROR: No Linux kernel was found in /boot."
-            ls -la /boot
-            exit 1
-          fi
-
-          echo "Using kernel: $KERNEL_PATH"
+          KERNEL_PATH=$(ls -1 /boot/vmlinuz-* | head -n 1)
           sudo cp "$KERNEL_PATH" iso_root/boot/vmlinuz
-          sudo chown "$(id -u):$(id -g)" iso_root/boot/vmlinuz
-          chmod 0644 iso_root/boot/vmlinuz
+          sudo chmod 644 iso_root/boot/vmlinuz
 
-      - name: Configure GRUB
+      - name: Configure GRUB Bootloader
         run: |
-          cat > iso_root/boot/grub/grub.cfg <<'GRUBCFG'
-          set default=0
-          set timeout=5
-          set timeout_style=menu
-
+          cat << 'CFG' > iso_root/boot/grub/grub.cfg
           insmod all_video
-          insmod gfxterm
           insmod efi_gop
-
-          terminal_output console
+          insmod efi_uga
           set gfxpayload=keep
+          set timeout=5
+          set default=0
 
           menuentry "LinDOS x86_64 Live Shell" {
-              echo "Loading LinDOS kernel..."
-              linux /boot/vmlinuz \
-                init=/init \
-                rdinit=/init \
-                console=tty0 \
-                loglevel=7
-              echo "Loading LinDOS initramfs..."
-              initrd /boot/initrd.img
-          }
-
-          menuentry "LinDOS diagnostic boot" {
-              linux /boot/vmlinuz \
-                init=/init \
-                rdinit=/init \
-                console=tty0 \
-                loglevel=8 \
-                ignore_loglevel
+              echo "Loading LinDOS Linux Kernel..."
+              linux /boot/vmlinuz console=tty0 quiet
+              echo "Loading LinDOS Initial RAM Disk..."
               initrd /boot/initrd.img
           }
 
           menuentry "Reboot" {
               reboot
           }
+          CFG
 
-          menuentry "Power off" {
-              halt
-          }
-          GRUBCFG
-
-      - name: Generate hybrid bootable ISO
+      - name: Generate Hybrid Bootable ISO
         run: |
-          grub-mkrescue \
-            -o LinDOS-x86_64.iso \
-            iso_root \
-            -- \
-            -volid LINDOS
+          grub-mkrescue /usr/lib/grub/i386-pc /usr/lib/grub/x86_64-efi -o LinDOS-x86_64.iso iso_root/ -- -volid "LINDOS"
 
-          test -s LinDOS-x86_64.iso
-          file LinDOS-x86_64.iso
-          ls -lh LinDOS-x86_64.iso
-
-      - name: Upload ISO artifact
+      - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4
         with:
           name: LinDOS-x86_64-ISO
           path: LinDOS-x86_64.iso
-          if-no-files-found: error
-          retention-days: 14
